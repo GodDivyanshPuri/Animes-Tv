@@ -1,0 +1,388 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anime-TV</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#121824; --muted:#95a0b5; --text:#eef2ff; --accent:#6ee7ff; --accent2:#a78bfa;
+      --danger:#ef4444; --ok:#22c55e; --card:#0f1522;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; background:linear-gradient(120deg,#0b0f14,#0b0f14 50%, #0e1320); color:var(--text)}
+    header{position:sticky; top:0; z-index:40; background:rgba(15,21,34,.7); backdrop-filter: blur(8px); border-bottom:1px solid #1f2937}
+    .wrap{max-width:1100px; margin:auto; padding:14px 18px; display:flex; align-items:center; gap:16px}
+    .brand{font-weight:800; letter-spacing:.4px; font-size:20px}
+    .brand b{background:linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+    .spacer{flex:1}
+    .pill{padding:6px 10px; border:1px solid #243042; border-radius:999px; color:var(--muted); font-size:12px}main{max-width:1100px; margin:20px auto; padding:0 18px; display:grid; grid-template-columns:280px 1fr; gap:18px}
+
+/* Sidebar */
+.side{background:var(--panel); border:1px solid #1f2937; border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
+.side h3{margin:0 0 6px 0; font-size:14px; color:var(--muted); font-weight:600}
+.group-list{display:flex; flex-direction:column; gap:8px; max-height:65vh; overflow:auto}
+.group-btn{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid #233046; background:var(--card); cursor:pointer}
+.group-btn.active{outline:2px solid var(--accent2)}
+.group-btn small{color:var(--muted)}
+
+/* Content */
+.content{display:flex; flex-direction:column; gap:16px}
+.card{background:var(--panel); border:1px solid #1f2937; border-radius:16px; padding:14px}
+.row{display:flex; gap:12px; flex-wrap:wrap}
+.row > *{flex:1}
+
+.admin{display:none}
+.admin.show{display:block}
+.muted{color:var(--muted)}
+input, select, button, textarea{background:#0c1220; border:1px solid #233046; color:var(--text); padding:10px 12px; border-radius:12px; font:inherit}
+input::placeholder, textarea::placeholder{color:#61708a}
+button{cursor:pointer}
+.btn{background:linear-gradient(90deg, #1f77ff, #7c3aed); border:none}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+
+.video-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px}
+.video-item{background:var(--card); border:1px solid #233046; border-radius:14px; overflow:hidden}
+.video-item header{position:unset; background:none; border:none}
+.video-title{padding:10px 12px; font-size:14px}
+.empty{padding:26px; text-align:center; color:var(--muted)}
+
+.badge{font-size:11px; padding:4px 8px; border:1px solid #263246; border-radius:999px; color:#b6c2db}
+
+footer{max-width:1100px; margin:24px auto; padding:0 18px 30px; color:var(--muted); font-size:12px}
+code.k{padding:2px 6px; border-radius:8px; background:#0c1220; border:1px solid #233046}
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">Anime-<b>TV</b></div>
+      <div class="pill">Watch anime videos • Public viewers, Admin-only uploader</div>
+      <div class="spacer"></div>
+      <div id="adminStatus" class="badge">Viewer</div>
+    </div>
+  </header>  <main>
+    <aside class="side">
+      <h3>Groups</h3>
+      <div id="groups" class="group-list"></div>
+      <div class="admin" id="adminGroupBox">
+        <h3>Create new group (Admin)</h3>
+        <div class="row">
+          <input id="groupName" placeholder="e.g., One Piece, Naruto, Bleach" />
+          <button class="btn" id="createGroupBtn">Create</button>
+        </div>
+        <div class="muted" style="font-size:12px">Tip: Groups help you organize videos by anime/season/playlist.</div>
+      </div>
+    </aside><section class="content">
+  <div class="card" id="loginCard">
+    <h3 style="margin-top:0">Admin Login (for uploads)</h3>
+    <div class="row">
+      <input id="username" placeholder="Username (Rubi ko fan)" />
+      <input id="passkey" placeholder="Pass key (9814540634)" />
+      <button id="loginBtn" class="btn">Unlock Admin</button>
+    </div>
+    <div class="muted" style="margin-top:8px">Viewers can ignore this. Only the owner can add groups/videos.
+    </div>
+  </div>
+
+  <div class="card admin" id="uploader">
+    <h3 style="margin-top:0">Add video (Admin)</h3>
+    <div class="row">
+      <select id="groupSelect"></select>
+      <input id="videoTitle" placeholder="Video title" />
+      <input id="videoUrl" placeholder="Direct MP4 URL or YouTube link" />
+    </div>
+    <div class="row">
+      <textarea id="videoDesc" placeholder="(Optional) description" rows="2"></textarea>
+    </div>
+    <div class="row">
+      <button class="btn" id="addVideoBtn">Add Video</button>
+      <span id="addVideoMsg" class="muted"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:center">
+      <h3 style="margin:0">Videos <span id="activeGroupName" class="badge" style="margin-left:8px">All</span></h3>
+      <div class="spacer"></div>
+      <input id="searchBox" placeholder="Search in current group…" style="max-width:320px" />
+    </div>
+    <div id="videoGrid" class="video-grid" style="margin-top:12px"></div>
+    <div id="emptyState" class="empty" style="display:none">No videos here yet.</div>
+  </div>
+</section>
+
+  </main>  <footer>
+    <div>
+      <b>Setup steps:</b> Add your Firebase config below, create a Firestore database, then open this file in a browser. Everyone can watch, only the admin can upload.
+    </div>
+    <div style="margin-top:6px"><details>
+    <summary>Recommended Firestore Rules (secure, requires Auth)</summary>
+    <pre style="white-space:pre-wrap">
+
+// 1) In Firebase Console → Authentication: create one Email/Password user for the owner (any email), //    set displayName to "Rubi ko fan" and password to 9814540634 (or choose a stronger password). // 2) In Firestore Rules, restrict writes to that user only. Replace YOUR_ADMIN_UID with that user’s UID. rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read: if true; // everyone can view allow write: if request.auth != null && request.auth.uid == "YOUR_ADMIN_UID"; // only owner can write } } } </pre> </details>
+
+<details>
+    <summary>Quick-start Rules (for local testing only)</summary>
+    <pre style="white-space:pre-wrap">
+
+// ⚠️ Not secure. Use only while testing, then switch to the secure rules above. rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read: if true; allow write: if true; } } } </pre> </details> </div>
+
+  </footer>  <!-- Firebase + App Code -->  <script type="module">
+    // ====================
+    // 1) Firebase setup
+    // ====================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // TODO: Paste your Firebase web app config here
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOqT9h54AhvfMFggYAHio15w8AWBAkmmU",
+    authDomain: "animes-tv-1bc5f.firebaseapp.com",
+    projectId: "animes-tv-1bc5f",
+    storageBucket: "animes-tv-1bc5f.firebasestorage.app",
+    messagingSenderId: "666134931807",
+    appId: "1:666134931807:web:f833db8f1f1a31aee36eea",
+    measurementId: "G-1V125HMVFZ"
+  };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Collections
+    const GROUPS = collection(db, 'groups');
+    const VIDEOS = collection(db, 'videos');
+
+    // ====================
+    // 2) Simple Admin Gate (client-side)
+    //    Username must be exactly "Rubi ko fan" & passkey "9814540634"
+    //    This only hides UI; use Firestore Rules above for real security.
+    // ====================
+    const ADMIN_USERNAME = 'Rubi ko fan';
+    const ADMIN_PASSKEY = '9814540634';
+
+    const els = {
+      adminStatus: document.getElementById('adminStatus'),
+      loginCard: document.getElementById('loginCard'),
+      username: document.getElementById('username'),
+      passkey: document.getElementById('passkey'),
+      loginBtn: document.getElementById('loginBtn'),
+      adminBoxes: [document.getElementById('uploader'), document.getElementById('adminGroupBox')],
+      createGroupBtn: document.getElementById('createGroupBtn'),
+      groupName: document.getElementById('groupName'),
+      groups: document.getElementById('groups'),
+      groupSelect: document.getElementById('groupSelect'),
+      activeGroupName: document.getElementById('activeGroupName'),
+      addVideoBtn: document.getElementById('addVideoBtn'),
+      addVideoMsg: document.getElementById('addVideoMsg'),
+      videoGrid: document.getElementById('videoGrid'),
+      emptyState: document.getElementById('emptyState'),
+      videoTitle: document.getElementById('videoTitle'),
+      videoUrl: document.getElementById('videoUrl'),
+      videoDesc: document.getElementById('videoDesc'),
+      searchBox: document.getElementById('searchBox'),
+    };
+
+    let isAdmin = sessionStorage.getItem('anime_tv_admin') === '1';
+    updateAdminUI();
+
+    els.loginBtn.addEventListener('click', () => {
+      const u = (els.username.value || '').trim();
+      const p = (els.passkey.value || '').trim();
+      if(u === ADMIN_USERNAME && p === ADMIN_PASSKEY){
+        isAdmin = true;
+        sessionStorage.setItem('anime_tv_admin', '1');
+        updateAdminUI();
+      } else {
+        alert('Wrong username or pass key');
+      }
+    });
+
+    function updateAdminUI(){
+      els.adminStatus.textContent = isAdmin ? 'Admin' : 'Viewer';
+      els.adminStatus.style.borderColor = isAdmin ? '#3b82f6' : '#263246';
+      els.adminBoxes.forEach(b => b.classList.toggle('show', isAdmin));
+      document.getElementById('adminGroupBox').style.display = isAdmin ? 'block' : 'none';
+      document.getElementById('uploader').style.display = isAdmin ? 'block' : 'none';
+    }
+
+    // ====================
+    // 3) Groups: live list + create
+    // ====================
+    let allGroups = []; // {id, name}
+    let activeGroupId = null; // null = All
+
+    import { onSnapshot as onSnap } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const groupsQuery = query(GROUPS, orderBy('createdAt', 'asc'));
+    onSnap(groupsQuery, (snap) => {
+      allGroups = snap.docs.map(d => ({ id: d.id, ...(d.data()) }));
+      renderGroups();
+      fillGroupSelect();
+      if(!activeGroupId && allGroups[0]){
+        // default to first group, or show All if none
+        setActiveGroup(null); // All by default
+      } else {
+        refreshVideos();
+      }
+    });
+
+    function renderGroups(){
+      els.groups.innerHTML = '';
+
+      const allBtn = document.createElement('div');
+      allBtn.className = 'group-btn' + (activeGroupId === null ? ' active' : '');
+      allBtn.innerHTML = `<div><strong>All Videos</strong><div><small>All groups</small></div></div>`;
+      allBtn.onclick = ()=> setActiveGroup(null);
+      els.groups.appendChild(allBtn);
+
+      for(const g of allGroups){
+        const btn = document.createElement('div');
+        btn.className = 'group-btn' + (g.id === activeGroupId ? ' active' : '');
+        btn.innerHTML = `<div><strong>${escapeHtml(g.name)}</strong><div><small>ID: ${g.id.slice(0,6)}…</small></div></div>`;
+        btn.onclick = ()=> setActiveGroup(g.id);
+        els.groups.appendChild(btn);
+      }
+    }
+
+    function fillGroupSelect(){
+      els.groupSelect.innerHTML = '';
+      if(allGroups.length===0){
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '— create a group first —';
+        els.groupSelect.appendChild(opt);
+        return;
+      }
+      for(const g of allGroups){
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = g.name;
+        els.groupSelect.appendChild(opt);
+      }
+    }
+
+    els.createGroupBtn.addEventListener('click', async () => {
+      if(!isAdmin) return alert('Admin only');
+      const name = (els.groupName.value || '').trim();
+      if(!name) return;
+      els.createGroupBtn.disabled = true;
+      try{
+        await addDoc(GROUPS, { name, createdAt: serverTimestamp() });
+        els.groupName.value='';
+      }catch(e){
+        alert('Failed to create group: '+ e.message);
+      }finally{
+        els.createGroupBtn.disabled = false;
+      }
+    });
+
+    function setActiveGroup(groupId){
+      activeGroupId = groupId; // null for All
+      const label = groupId ? (allGroups.find(g=>g.id===groupId)?.name || 'Group') : 'All';
+      els.activeGroupName.textContent = label;
+      renderGroups();
+      refreshVideos();
+    }
+
+    // ====================
+    // 4) Videos: add + list + filter
+    // ====================
+    let allVideos = []; // cached list for current view
+
+    els.addVideoBtn.addEventListener('click', async () => {
+      if(!isAdmin) return alert('Admin only');
+      const groupId = els.groupSelect.value;
+      const title = (els.videoTitle.value || '').trim();
+      const url = (els.videoUrl.value || '').trim();
+      const desc = (els.videoDesc.value || '').trim();
+      if(!groupId) return alert('Pick a group');
+      if(!title || !url) return alert('Title & URL required');
+      els.addVideoBtn.disabled = true; els.addVideoMsg.textContent = 'Adding…';
+      try{
+        await addDoc(VIDEOS, {
+          title, url, desc, groupId, createdAt: serverTimestamp()
+        });
+        els.videoTitle.value = '';
+        els.videoUrl.value = '';
+        els.videoDesc.value = '';
+        els.addVideoMsg.textContent = 'Added ✅';
+        setTimeout(()=> els.addVideoMsg.textContent = '', 1200);
+      }catch(e){
+        els.addVideoMsg.textContent = '';
+        alert('Failed to add video: ' + e.message);
+      }finally{
+        els.addVideoBtn.disabled = false;
+      }
+    });
+
+    // live query by active group
+    let unsubVideos = null;
+    function refreshVideos(){
+      if(unsubVideos) unsubVideos();
+      // build query
+      let qRef;
+      if(activeGroupId){
+        qRef = query(VIDEOS, where('groupId','==',activeGroupId), orderBy('createdAt','desc'));
+      } else {
+        qRef = query(VIDEOS, orderBy('createdAt','desc'));
+      }
+      unsubVideos = onSnap(qRef, (snap)=>{
+        allVideos = snap.docs.map(d => ({ id: d.id, ...(d.data()) }));
+        renderVideos();
+      });
+    }
+
+    function renderVideos(){
+      const term = (els.searchBox.value || '').trim().toLowerCase();
+      const list = term ? allVideos.filter(v => (v.title||'').toLowerCase().includes(term) || (v.desc||'').toLowerCase().includes(term)) : allVideos;
+      els.videoGrid.innerHTML = '';
+      if(list.length===0){ els.emptyState.style.display='block'; return; }
+      els.emptyState.style.display='none';
+      for(const v of list){
+        const card = document.createElement('div');
+        card.className = 'video-item';
+        card.innerHTML = `
+          <div class="player">${renderPlayer(v.url)}</div>
+          <div class="video-title"><strong>${escapeHtml(v.title)}</strong><div class="muted" style="font-size:12px; margin-top:4px;">${escapeHtml(v.desc || '')}</div></div>
+        `;
+        els.videoGrid.appendChild(card);
+      }
+    }
+
+    els.searchBox.addEventListener('input', renderVideos);
+
+    function renderPlayer(url){
+      const u = (url||'').trim();
+      // YouTube patterns
+      const yt = parseYouTube(u);
+      if(yt){
+        const src = `https://www.youtube.com/embed/${yt}`;
+        return `<div style="position:relative;padding-top:56.25%"><iframe src="${src}" title="YouTube video" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;inset:0;border:0;width:100%;height:100%"></iframe></div>`
+      }
+      // HTML5 <video>
+      const safe = escapeHtml(u);
+      return `<video controls preload="metadata" style="width:100%;height:auto;display:block;background:#000"><source src="${safe}">Your browser does not support the video tag.</video>`;
+    }
+
+    function parseYouTube(u){
+      try{
+        const url = new URL(u);
+        if(url.hostname.includes('youtu.be')){ return url.pathname.replace('/',''); }
+        if(url.hostname.includes('youtube.com')){
+          if(url.searchParams.get('v')) return url.searchParams.get('v');
+          const p = url.pathname.split('/').filter(Boolean);
+          const i = p.indexOf('embed');
+          if(i>=0 && p[i+1]) return p[i+1];
+        }
+      }catch(e){/* ignore */}
+      return null;
+    }
+
+    function escapeHtml(s){
+      return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+  </script></body>
+</html>
